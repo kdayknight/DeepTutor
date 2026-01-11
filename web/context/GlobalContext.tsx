@@ -305,11 +305,12 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSettings = async () => {
     try {
-      const res = await fetch(apiUrl("/api/v1/settings"));
+      const res = await fetch(apiUrl("/api/v1/settings"), {
+        signal: AbortSignal.timeout(5000),
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.ui) {
-          // localStorage takes priority over backend
           const storedTheme = getStoredTheme();
           const themeToUse = storedTheme || data.ui.theme;
 
@@ -317,12 +318,10 @@ export function GlobalProvider({ children }: { children: React.ReactNode }) {
             theme: themeToUse,
             language: data.ui.language,
           });
-          // Apply and persist theme
           setTheme(themeToUse);
         }
       }
-    } catch (e) {
-      // Fall back to localStorage theme on error
+    } catch {
       const stored = getStoredTheme();
       if (stored) {
         setUiSettings((prev) => ({ ...prev, theme: stored }));

@@ -116,87 +116,30 @@ export default function KnowledgePage() {
     }
   }, [progressMap]);
 
-  // Define fetchKnowledgeBases using useCallback to ensure it's available
   const fetchKnowledgeBases = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const baseUrl = apiUrl("");
       const listUrl = apiUrl("/api/v1/knowledge/list");
-      const healthUrl = apiUrl("/api/v1/knowledge/health");
 
-      console.log("🔍 Fetching knowledge bases...");
-      console.log("  Base URL:", baseUrl);
-      console.log("  List URL:", listUrl);
-      console.log("  Health URL:", healthUrl);
-
-      // Test health check endpoint first
-      try {
-        const healthRes = await fetch(healthUrl);
-        const healthData = await healthRes.json();
-        console.log("✅ Health check response:", healthData);
-      } catch (healthErr) {
-        console.warn("⚠️ Health check failed:", healthErr);
-      }
-
-      // Fetch knowledge base list
       const res = await fetch(listUrl, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(10000),
       });
 
-      console.log("📡 Response status:", res.status, res.statusText);
-      console.log(
-        "📡 Response headers:",
-        Object.fromEntries(res.headers.entries()),
-      );
-
       if (!res.ok) {
-        let errorMessage = `HTTP ${res.status}: Failed to fetch knowledge bases`;
-        let errorDetail = "";
-        try {
-          const errorData = await res.json();
-          errorDetail = errorData.detail || errorData.message || "";
-          errorMessage = errorDetail || errorMessage;
-          console.error("❌ Error response:", errorData);
-        } catch (parseErr) {
-          const text = await res.text();
-          console.error("❌ Error response (text):", text);
-          errorMessage = `${errorMessage}. Response: ${text.substring(0, 200)}`;
-        }
-        throw new Error(errorMessage);
+        throw new Error(`HTTP ${res.status}: Failed to fetch`);
       }
 
       const data = await res.json();
-      console.log("✅ Received knowledge bases:", data);
-      console.log("✅ Data type:", Array.isArray(data) ? "array" : typeof data);
-      console.log("✅ Data length:", Array.isArray(data) ? data.length : "N/A");
-
-      if (!Array.isArray(data)) {
-        throw new Error(
-          `Invalid response format: expected array, got ${typeof data}`,
-        );
+      if (Array.isArray(data)) {
+        setKbs(data);
+        setError(null);
       }
-
-      setKbs(data);
-      setError(null); // Clear previous error - empty list is not an error, it's just empty state
-    } catch (err: any) {
-      console.error("❌ Error fetching knowledge bases:", err);
-      console.error("❌ Error stack:", err.stack);
-
-      let errorMessage =
-        err.message ||
-        "Failed to load knowledge bases. Please ensure the backend is running.";
-
-      // Provide more detailed message for network errors
-      if (err.name === "TypeError" && err.message.includes("fetch")) {
-        errorMessage = `Network error: Cannot connect to backend at ${apiUrl("")}. Please ensure the backend is running.`;
-      }
-
-      setError(errorMessage);
+    } catch {
+      setError("Cannot connect to backend. Please ensure the server is running on port 8001.");
     } finally {
       setLoading(false);
     }

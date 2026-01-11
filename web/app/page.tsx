@@ -9,13 +9,11 @@ import {
   Database,
   Globe,
   Calculator,
-  FileText,
   Microscope,
   Lightbulb,
   Trash2,
   ExternalLink,
   BookOpen,
-  Sparkles,
   Edit3,
   GraduationCap,
   PenTool,
@@ -40,7 +38,6 @@ export default function HomePage() {
     chatState,
     setChatState,
     sendChatMessage,
-    clearChatHistory,
     newChatSession,
     uiSettings,
   } = useGlobal();
@@ -53,20 +50,29 @@ export default function HomePage() {
 
   // Fetch knowledge bases
   useEffect(() => {
-    fetch(apiUrl("/api/v1/knowledge/list"))
-      .then((res) => res.json())
+    const controller = new AbortController();
+    fetch(apiUrl("/api/v1/knowledge/list"), {
+      signal: controller.signal,
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("API error");
+        return res.json();
+      })
       .then((data) => {
-        setKbs(data);
-        if (!chatState.selectedKb) {
-          const defaultKb = data.find((kb: KnowledgeBase) => kb.is_default);
-          if (defaultKb) {
-            setChatState((prev) => ({ ...prev, selectedKb: defaultKb.name }));
-          } else if (data.length > 0) {
-            setChatState((prev) => ({ ...prev, selectedKb: data[0].name }));
+        if (Array.isArray(data)) {
+          setKbs(data);
+          if (!chatState.selectedKb) {
+            const defaultKb = data.find((kb: KnowledgeBase) => kb.is_default);
+            if (defaultKb) {
+              setChatState((prev) => ({ ...prev, selectedKb: defaultKb.name }));
+            } else if (data.length > 0) {
+              setChatState((prev) => ({ ...prev, selectedKb: data[0].name }));
+            }
           }
         }
       })
-      .catch((err) => console.error("Failed to fetch KBs:", err));
+      .catch(() => {});
+    return () => controller.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
